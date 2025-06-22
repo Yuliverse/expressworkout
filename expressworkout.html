@@ -1,0 +1,601 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #34d399, #10b981);
+            min-height: 100vh;
+        }
+        .timer-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .exercise-card {
+            transition: all 0.3s ease;
+        }
+        .exercise-card:hover {
+            transform: translateY(-5px);
+        }
+        .btn-primary {
+            transition: all 0.2s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            border-radius: 50%;
+            animation: fall 3s ease-in infinite;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+        .gender-btn.active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .ad-banner {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-green-500 to-emerald-600 p-6 md:p-8 text-white">
+            <h1 class="text-2xl md:text-4xl font-bold text-center">Exercise Challenge</h1>
+            <p class="text-center mt-2 text-green-100">Complete 3 random exercises in 5 minutes!</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="p-6 md:p-8">
+            <!-- Start Screen -->
+            <div id="start-screen" class="text-center py-12">
+                <div class="w-32 h-32 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Ready for your workout?</h2>
+                <p class="text-gray-600 mb-6 max-w-md mx-auto">Select your gender to get exercises tailored for you:</p>
+                
+                <!-- Gender Selection -->
+                <div class="flex justify-center gap-4 mb-8">
+                    <button id="ladies-btn" class="gender-btn bg-pink-500 hover:bg-pink-600 text-white font-medium py-3 px-8 rounded-lg text-lg">
+                        Ladies
+                    </button>
+                    <button id="gents-btn" class="gender-btn bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-8 rounded-lg text-lg">
+                        Gents
+                    </button>
+                </div>
+                
+                <button id="start-button" class="btn-primary bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg text-lg opacity-50 cursor-not-allowed" disabled>
+                    Start Challenge
+                </button>
+                <p id="gender-prompt" class="mt-4 text-red-500 text-sm">Please select your gender first</p>
+            </div>
+
+            <!-- Exercise Screen (Initially Hidden) -->
+            <div id="exercise-screen" class="hidden">
+                <!-- Timer Section -->
+                <div class="mb-8 text-center">
+                    <div class="timer-display text-green-600 mb-2" id="timer">5:00</div>
+                    <div class="flex justify-center gap-4 flex-wrap">
+                        <button id="start-timer-button" class="pulse bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-6 rounded-lg">
+                            Start Timer
+                        </button>
+                        <button id="pause-button" class="bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg hidden">
+                            Pause
+                        </button>
+                        <button id="reset-button" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg hidden">
+                            Reset
+                        </button>
+                    </div>
+                    <p id="timer-status" class="mt-2 text-sm text-gray-500">Timer ready. Click "Start Timer" when you're ready to begin.</p>
+                </div>
+
+                <!-- Exercises Container -->
+                <div id="exercises-container" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Exercise cards will be inserted here -->
+                </div>
+
+                <!-- Complete Button -->
+                <div class="mt-8 text-center">
+                    <button id="complete-button" class="btn-primary bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg text-lg">
+                        Complete Challenge
+                    </button>
+                </div>
+            </div>
+
+            <!-- Completion Screen (Initially Hidden) -->
+            <div id="completion-screen" class="hidden text-center py-12">
+                <div class="w-32 h-32 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Great job!</h2>
+                <p class="text-gray-600 mb-8 max-w-md mx-auto">You've completed your workout challenge.</p>
+                <button id="new-challenge-button" class="btn-primary bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg text-lg">
+                    Try Another Challenge
+                </button>
+            </div>
+        </div>
+        
+        <!-- Advertisement Section -->
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-6 border-t border-green-200">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6">
+                <div class="w-full md:w-1/2">
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden border border-green-200">
+                        <div class="p-4 bg-green-500 text-white text-center font-semibold">
+                            Advertising Space
+                        </div>
+                        <div class="p-6 flex flex-col items-center">
+                            <div class="w-32 h-32 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                </svg>
+                            </div>
+                            <p class="text-center text-gray-700 font-medium">Advertise your brand & business here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Exercise data from the provided CSV
+        const exerciseData = {
+            ladies: [
+                { id: 1, title: "Plank Hold", videoId: "atFm5FQEK8c" },
+                { id: 2, title: "Side Lifts", videoId: "rG-NHKKvWeg" },
+                { id: 3, title: "Heel Taps", videoId: "Va9JNy9fyj4" },
+                { id: 4, title: "Push Throughs", videoId: "I2nmDoF0Twk" },
+                { id: 5, title: "Butt Bridges", videoId: "OkD9dPoMXfM" },
+                { id: 6, title: "Bridge Toe Taps", videoId: "aFeJEzORaz0" },
+                { id: 7, title: "Alternating Toe Taps", videoId: "Toepet9axd0" },
+                { id: 8, title: "Squat Toe Touch", videoId: "BAZbg_gEDzU" },
+                { id: 9, title: "Plank Leg Raises", videoId: "8nY1hIZihCs" },
+                { id: 10, title: "Wind Shield Wipers", videoId: "7vnthTx2pRI" },
+                { id: 11, title: "Bird Dog", videoId: "3HCLTm-vSR4" },
+                { id: 12, title: "Side Fire Hydrants", videoId: "s5Hhog4Iqok" },
+                { id: 13, title: "Donkey Kicks", videoId: "DubGjAbLx0s" },
+                { id: 14, title: "Leg Extensions", videoId: "LcoldpQSkdY" },
+                { id: 15, title: "Supermans", videoId: "P74l42g7_WE" },
+                { id: 16, title: "Side To Side Hip Dip Planks", videoId: "b8pYHM_pxFg" },
+                { id: 17, title: "Okapi's", videoId: "yWKZyQ3fRqU" },
+                { id: 18, title: "Squats", videoId: "bHyF5YN4x-g" },
+                { id: 19, title: "Side Plank", videoId: "J7bWRLHLtSQ" },
+                { id: 20, title: "Switching Lunges", videoId: "y4IpE_rUbmw" },
+                { id: 21, title: "Animal Walk", videoId: "RUoC1pXYNsI" },
+                { id: 22, title: "Break Dance", videoId: "OUWhLSO0reg" },
+                { id: 23, title: "Plank Knee", videoId: "Kg5oKTAk6NY" },
+                { id: 24, title: "Plank Alternating Toe Taps", videoId: "EzJfVfXJ3Nw" },
+                { id: 25, title: "Crucifix", videoId: "bMUN3EY-rd8" },
+                { id: 26, title: "Chair Sit Ups", videoId: "9ZjCBhlMgPA" },
+                { id: 27, title: "Flutter Kicks", videoId: "yhckQBw0zPg" },
+                { id: 28, title: "Star Crunches", videoId: "cDHDwevOKQk" },
+                { id: 29, title: "Seated Leg Raises", videoId: "xvv3ou7ae14" },
+                { id: 30, title: "Weighted Russian Twists", videoId: "9d3rG3hnZQQ" },
+                { id: 31, title: "High Plank To Low Plank", videoId: "bGgqeE6K_Nk" },
+                { id: 32, title: "T Rotation", videoId: "pXAoc_duOos" },
+                { id: 33, title: "Modified Plyo Push Up", videoId: "evHbS2_Q1AA" },
+                { id: 34, title: "Blast Off Push Ups", videoId: "LlinAPPE630" },
+                { id: 35, title: "Jumping Mountain Climbers", videoId: "BEy3-E20EWg" },
+                { id: 36, title: "Side To Side Climbers", videoId: "u2ibhEg7ykE" },
+                { id: 37, title: "Plank Toe Taps", videoId: "cJB8eQU7Eb4" },
+                { id: 38, title: "Plank Knee Taps", videoId: "q8N_23HR5qA" },
+                { id: 39, title: "Plank Hip Taps", videoId: "DuC_86IsvS4" },
+                { id: 40, title: "Plank Shoulder Taps", videoId: "rvWX-oeRmVk" },
+                { id: 41, title: "Plyo Push Ups", videoId: "W-O3HrTIIkw" },
+                { id: 42, title: "Plank Hand Taps", videoId: "9X_yB8P6mDw" },
+                { id: 43, title: "Plank Elbow Taps", videoId: "Xi5ciRUG1Co" },
+                { id: 44, title: "Running Mountain Climbers", videoId: "uOv1_e7dPJI" },
+                { id: 45, title: "Switching Mountain Climbers", videoId: "0biu2QbU9WE" },
+                { id: 46, title: "Spider Mountain Climbers", videoId: "TZiQQG0m1u4" },
+                { id: 47, title: "Reverse Crunch", videoId: "JlRqnAn3050" },
+                { id: 48, title: "Toe Touches", videoId: "TvYbBtSPKQU" },
+                { id: 49, title: "Side To Side Plank", videoId: "SiwNE3fLLHw" },
+                { id: 50, title: "Leg Raises", videoId: "m7R3JQ2hH4o" },
+                { id: 51, title: "Bicycle Kicks", videoId: "hdiaL58lhxw" },
+                { id: 52, title: "Push Ups", videoId: "_EtE3nUX7IQ" },
+                { id: 53, title: "Modified Push Ups", videoId: "NDPiCA9cO44" },
+                { id: 54, title: "In & Outs", videoId: "smWPjvhdG_w" },
+                { id: 55, title: "Alternating Lunges", videoId: "tIotwcxen0E" },
+                { id: 56, title: "Side To Side Hop", videoId: "nJT41_A-S74" },
+                { id: 57, title: "Double Fast Feet", videoId: "ZoH_disXPlk" },
+                { id: 58, title: "Half Burpees", videoId: "lsak_fUYu4w" },
+                { id: 59, title: "Alternating Fast Feet", videoId: "jhuzIKEufco" },
+                { id: 60, title: "Cross Body Jump", videoId: "MHETWYAL5Xo" },
+                { id: 61, title: "Jumping Jacks", videoId: "eTJOzaS-Xbo" },
+                { id: 62, title: "Long Jumps", videoId: "GWpIR0Rd85g" },
+                { id: 63, title: "Running Lunges", videoId: "fVj_7abyf7c" },
+                { id: 64, title: "Skater Jumps", videoId: "3vIC78LZHvU" },
+                { id: 65, title: "Butt Kicks", videoId: "8Iq631XzzCQ" },
+                { id: 66, title: "High Knees", videoId: "0Xetn8DQ6VA" }
+            ],
+            gents: [
+                { id: 67, title: "Bridge Toe Taps", videoId: "R83qJl7Gd1s" },
+                { id: 68, title: "Butt Kicks", videoId: "FXmqj341gn8" },
+                { id: 69, title: "Burpees", videoId: "Fy2MmO2FXGE" },
+                { id: 70, title: "Cross Body", videoId: "iJti3fEUNxE" },
+                { id: 71, title: "High Knees", videoId: "GrAVPAzdh2s" },
+                { id: 72, title: "Long Jumps", videoId: "hjMOk1xvmtc" },
+                { id: 73, title: "Skater Jumps", videoId: "y853q4YjG-4" },
+                { id: 74, title: "Double Fast Feet", videoId: "xCoA-x5m_LQ" },
+                { id: 75, title: "Jumping Jacks", videoId: "iQFpsBwhh0o" },
+                { id: 76, title: "Running Lunges", videoId: "rWlGuzDAIYA" },
+                { id: 77, title: "Alternating Fast Feet", videoId: "xsoecegMgzs" },
+                { id: 78, title: "Alternating Lunges", videoId: "0AR4DnvzV0o" },
+                { id: 79, title: "In & Outs, Open & Closes", videoId: "wvaWv3V5QOo" },
+                { id: 80, title: "In & Outs", videoId: "BQ2sOMxnhqQ" },
+                { id: 81, title: "Push Ups", videoId: "Et5pb6M6D7Y" },
+                { id: 82, title: "Side To Side Hops", videoId: "Pd_NwtGZ8F4" },
+                { id: 83, title: "Leg Raises", videoId: "4FuEtdYeQic" },
+                { id: 84, title: "Reverse Crunch", videoId: "60QpISCeH98" },
+                { id: 85, title: "Bicycle Kicks", videoId: "D9xanUFyNq0" },
+                { id: 86, title: "Toe Touches", videoId: "JESFCPmsveU" },
+                { id: 87, title: "Spider Mountain Climbers", videoId: "_w9fL5xTpaU" },
+                { id: 88, title: "Switching Mountain Climbers", videoId: "x9CwLutSPpw" },
+                { id: 89, title: "Running Mountain Climbers", videoId: "7wyLiYV6pQk" },
+                { id: 90, title: "Plank Hand Taps", videoId: "CLzVcJR8lM8" },
+                { id: 91, title: "Plank Elbow Taps", videoId: "6vi7n7-DupA" },
+                { id: 92, title: "Plank Shoulder Taps", videoId: "VlMsn6vW-IU" },
+                { id: 93, title: "Plank Hip Taps", videoId: "YYwqdiQ6MC8" },
+                { id: 94, title: "Side To Side Climbers", videoId: "Axj8j2uGAnU" },
+                { id: 95, title: "Plank Toe Taps", videoId: "vYCAcHxbbEA" },
+                { id: 96, title: "Plank Knee Taps", videoId: "rXvsLseQJ14" },
+                { id: 97, title: "Jumping Mountain Climbers", videoId: "OOTXvCGWs-Y" },
+                { id: 98, title: "Plyo Push Ups", videoId: "EXsOt4u14zY" },
+                { id: 99, title: "Push Up Jacks", videoId: "KGJsLboieNo" },
+                { id: 100, title: "T Rotation", videoId: "uwSMi96tR8g" },
+                { id: 101, title: "High Plank To Low Plank", videoId: "lLMtOf4Jstg" },
+                { id: 102, title: "Weighted Russian Twists", videoId: "jjUy6Fk5BzA" },
+                { id: 103, title: "Russian Twists", videoId: "ropgCSvw5qo" },
+                { id: 104, title: "Seated Leg Raises", videoId: "kgZFbgBUijc" },
+                { id: 105, title: "Star Crunches", videoId: "LbNPlfxO-Ds" },
+                { id: 106, title: "Chair Sit Ups", videoId: "Nxv2uL4N6BE" },
+                { id: 107, title: "Flutter Kicks", videoId: "ATiGnaIuOys" },
+                { id: 108, title: "Plank In & Outs", videoId: "KjjBgwCShIw" },
+                { id: 109, title: "Crucifix", videoId: "HoXUMlRnvyo" },
+                { id: 110, title: "Plank Alternating Toe Taps", videoId: "_VceYF48U2w" },
+                { id: 111, title: "Plank To Knee Elbow", videoId: "KimOQ3gZrTM" },
+                { id: 112, title: "Break Dance", videoId: "RPbd44zva1s" },
+                { id: 113, title: "Animal Walk", videoId: "b2X-LFr_nt0" },
+                { id: 114, title: "Side Plank", videoId: "TdATkMyHvxY" },
+                { id: 115, title: "Switching Lunges", videoId: "t6MYZZXnGrQ" },
+                { id: 116, title: "Squats", videoId: "kUr7A5mN5TM" },
+                { id: 117, title: "Side To Side Hip Dip Planks", videoId: "77xDqm2aPio" },
+                { id: 118, title: "Supermans", videoId: "pMCV3vJWMiw" },
+                { id: 119, title: "Leg Extensions", videoId: "9MVVH0gCjvk" },
+                { id: 120, title: "Donkey Kicks", videoId: "Vmok0zB-3vo" },
+                { id: 121, title: "Side Fire Hydrants", videoId: "vkWq73xtPZw" },
+                { id: 122, title: "Bird Dog", videoId: "YBtdLGKb7Oc" },
+                { id: 123, title: "Wind Shield Wipers", videoId: "tDu5sTd9swc" },
+                { id: 124, title: "Open & Close Squats", videoId: "WhxTO3j61f4" },
+                { id: 125, title: "Squat Toe Touch", videoId: "lSOXdTcdtdM" },
+                { id: 126, title: "Seated In & Outs", videoId: "GaTpcfi9OW0" },
+                { id: 127, title: "Plank Hold", videoId: "StlfHDRwaeo" },
+                { id: 128, title: "Push Throughs", videoId: "WCIMcBiyxQY" }
+            ]
+        };
+
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const exerciseScreen = document.getElementById('exercise-screen');
+        const completionScreen = document.getElementById('completion-screen');
+        const startButton = document.getElementById('start-button');
+        const ladiesBtn = document.getElementById('ladies-btn');
+        const gentsBtn = document.getElementById('gents-btn');
+        const genderPrompt = document.getElementById('gender-prompt');
+        const startTimerButton = document.getElementById('start-timer-button');
+        const pauseButton = document.getElementById('pause-button');
+        const resetButton = document.getElementById('reset-button');
+        const completeButton = document.getElementById('complete-button');
+        const newChallengeButton = document.getElementById('new-challenge-button');
+        const timerDisplay = document.getElementById('timer');
+        const timerStatus = document.getElementById('timer-status');
+        const exercisesContainer = document.getElementById('exercises-container');
+
+        // Variables
+        let timeLeft = 5 * 60; // 5 minutes in seconds
+        let timerInterval;
+        let isPaused = false;
+        let timerStarted = false;
+        let selectedGender = null;
+
+        // Function to handle gender selection
+        function selectGender(gender) {
+            selectedGender = gender;
+            
+            // Update button styles
+            if (gender === 'ladies') {
+                ladiesBtn.classList.add('active', 'ring-4', 'ring-pink-300');
+                gentsBtn.classList.remove('active', 'ring-4', 'ring-blue-300');
+            } else {
+                gentsBtn.classList.add('active', 'ring-4', 'ring-blue-300');
+                ladiesBtn.classList.remove('active', 'ring-4', 'ring-pink-300');
+            }
+            
+            // Enable start button
+            startButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            startButton.disabled = false;
+            genderPrompt.classList.add('hidden');
+        }
+
+        // Function to get random exercises based on gender
+        function getRandomExercises(gender, count) {
+            const exercises = exerciseData[gender];
+            const shuffled = [...exercises].sort(() => 0.5 - Math.random());
+            
+            // If there are fewer exercises than requested, return all available
+            if (exercises.length <= count) {
+                return exercises;
+            }
+            
+            return shuffled.slice(0, count);
+        }
+
+        // Function to display exercises
+        function displayExercises(exercises) {
+            exercisesContainer.innerHTML = '';
+            
+            exercises.forEach(exercise => {
+                const exerciseCard = document.createElement('div');
+                exerciseCard.className = 'exercise-card bg-white rounded-xl shadow-md overflow-hidden border border-gray-200';
+                
+                // Extract YouTube video ID from URL if it contains parameters
+                let videoId = exercise.videoId;
+                if (videoId.includes('?')) {
+                    videoId = videoId.split('?')[0];
+                }
+                
+                exerciseCard.innerHTML = `
+                    <div class="aspect-video relative">
+                        <iframe 
+                            src="https://www.youtube.com/embed/${videoId}" 
+                            title="${exercise.title}"
+                            class="w-full h-full"
+                            frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg text-gray-800">${exercise.title}</h3>
+                    </div>
+                `;
+                
+                exercisesContainer.appendChild(exerciseCard);
+            });
+        }
+
+        // Function to update timer display
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Change color when time is running out
+            if (timeLeft <= 60) {
+                timerDisplay.classList.add('text-red-600');
+                timerDisplay.classList.remove('text-green-600');
+            } else {
+                timerDisplay.classList.remove('text-red-600');
+                timerDisplay.classList.add('text-green-600');
+            }
+        }
+
+        // Function to start timer
+        function startTimer() {
+            if (timerStarted) return;
+            
+            timerStarted = true;
+            startTimerButton.classList.add('hidden');
+            pauseButton.classList.remove('hidden');
+            resetButton.classList.remove('hidden');
+            timerStatus.textContent = "Timer running...";
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        showCompletionScreen();
+                    }
+                }
+            }, 1000);
+        }
+
+        // Function to pause timer
+        function togglePauseTimer() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? 'Resume' : 'Pause';
+            timerStatus.textContent = isPaused ? "Timer paused" : "Timer running...";
+        }
+
+        // Function to reset timer
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 5 * 60;
+            isPaused = false;
+            timerStarted = false;
+            
+            startTimerButton.classList.remove('hidden');
+            pauseButton.classList.add('hidden');
+            resetButton.classList.add('hidden');
+            
+            pauseButton.textContent = 'Pause';
+            timerStatus.textContent = "Timer ready. Click \"Start Timer\" when you're ready to begin.";
+            updateTimerDisplay();
+        }
+
+        // Function to show completion screen with confetti
+        function showCompletionScreen() {
+            exerciseScreen.classList.add('hidden');
+            completionScreen.classList.remove('hidden');
+            
+            // Create confetti
+            for (let i = 0; i < 50; i++) {
+                createConfetti();
+            }
+        }
+
+        // Function to create a confetti particle
+        function createConfetti() {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            
+            // Random position, color and size
+            const left = Math.random() * 100;
+            const colors = ['#10b981', '#34d399', '#6ee7b7', '#FFC700', '#00DDFF'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const size = Math.random() * 10 + 5;
+            const animationDuration = Math.random() * 3 + 2;
+            
+            confetti.style.left = `${left}vw`;
+            confetti.style.backgroundColor = color;
+            confetti.style.width = `${size}px`;
+            confetti.style.height = `${size}px`;
+            confetti.style.animationDuration = `${animationDuration}s`;
+            
+            document.body.appendChild(confetti);
+            
+            // Remove confetti after animation
+            setTimeout(() => {
+                confetti.remove();
+            }, animationDuration * 1000);
+        }
+
+        // Event Listeners
+        ladiesBtn.addEventListener('click', () => selectGender('ladies'));
+        gentsBtn.addEventListener('click', () => selectGender('gents'));
+
+        startButton.addEventListener('click', () => {
+            if (!selectedGender) return;
+            
+            startScreen.classList.add('hidden');
+            exerciseScreen.classList.remove('hidden');
+            
+            // Get and display random exercises based on gender
+            const randomExercises = getRandomExercises(selectedGender, 3); // Selecting 3 exercises
+            displayExercises(randomExercises);
+            
+            // Reset timer but don't start it automatically
+            resetTimer();
+        });
+
+        startTimerButton.addEventListener('click', startTimer);
+
+        pauseButton.addEventListener('click', togglePauseTimer);
+
+        resetButton.addEventListener('click', resetTimer);
+
+        completeButton.addEventListener('click', () => {
+            clearInterval(timerInterval);
+            showCompletionScreen();
+        });
+
+        newChallengeButton.addEventListener('click', () => {
+            completionScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            selectedGender = null;
+            
+            // Reset gender selection UI
+            ladiesBtn.classList.remove('active', 'ring-4', 'ring-pink-300');
+            gentsBtn.classList.remove('active', 'ring-4', 'ring-blue-300');
+            startButton.classList.add('opacity-50', 'cursor-not-allowed');
+            startButton.disabled = true;
+            genderPrompt.classList.remove('hidden');
+        });
+
+        // Initialize timer display
+        updateTimerDisplay();
+    </script>
+</body>
+</html>
